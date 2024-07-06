@@ -10,10 +10,8 @@ class AeEnsembleClassifier:
     DETECT_THRESHOLD = 5
 
     def __init__(self, batch_size: int = 32):
-        self._autoencoders = {}
-        self._classifiers = []
+        self._models = {}
         self._batch_size = batch_size
-        self.NORMAL_APP = 1111
 
     def _train_encoders(self, ae_train_data, target_feature_name):
         grouped_data = ae_train_data.groupby(by=[target_feature_name])
@@ -32,11 +30,11 @@ class AeEnsembleClassifier:
                 "classifier": None
             }
 
-            self._autoencoders[target_feature_value] = ae_info
+            self._models[target_feature_value] = ae_info
 
     def _train_classifiers(self, classifiers_train_data: pd.DataFrame, target_feature_name):
 
-        for target_feature_value, ae_info in self._autoencoders.items():
+        for target_feature_value, ae_info in self._models.items():
 
             features = classifiers_train_data.drop(target_feature_name, axis=1)
             labels = classifiers_train_data[target_feature_name]
@@ -44,26 +42,22 @@ class AeEnsembleClassifier:
             train = pd.DataFrame(data=ae_info["ae"].predict(features), index=features.index, columns=features.columns)
             train[target_feature_name] = labels
 
-            grouped_data = train.groupby(by=[target_feature_name])
-
             current_classifier = RandomForestClassifier(random_state=42)
 
-            positive_sample = train
+            positive_sample = train[train[target_feature_name] == target_feature_value]
             positive_sample[target_feature_name] = 1
 
-            negative_samples = classifiers_train_data[classifiers_train_data[target_feature_name] != target_feature_value]
+            negative_samples = train[train[target_feature_name] != target_feature_value]
             negative_samples[target_feature_name] = 0
-            negative_samples = (negative_samples.groupby(by=[target_feature_name])
-                                .apply(lambda x: x.sample(int(len(positive_sample) / (len(grouped_data) - 1)))))
 
             c_train = pd.concat([positive_sample, negative_samples]).sample(frac=1.0, replace=False)
 
             current_classifier.fit(c_train.drop(target_feature_name, axis=1), c_train[target_feature_name])
 
-            self._autoencoders[target_feature_value]["classifier"] = current_classifier
+            self._models[target_feature_value]["classifier"] = current_classifier
 
 
-    def fit(self, data: pd.DataFrame, target_feature_name: str) -> pd.DataFrame:
+    def fit(self, data: pd.DataFrame, target_feature_name: str):
         ae_train_data, classifiers_train_data = train_test_split(data,
                                                                  test_size=0.5,
                                                                  stratify=data[target_feature_name],
@@ -72,8 +66,11 @@ class AeEnsembleClassifier:
         self._train_encoders(ae_train_data, target_feature_name)
         self._train_classifiers(classifiers_train_data, target_feature_name)
 
-        #TODO: доделать предикт, написать код эксперимента без фона
-        print()
-
     def predict(self, data: pd.DataFrame):
-        return None
+        predictions = pd.DataFrame()
+        for target_feature_value, ae_info in self._models.items():
+            ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
+            classifier_predict = ae_info["classifier"].predict_proba(ae_predict)[:, 1]
+            predictions[target_feature_value] = pd.Series(classifier_predict, index=data.index)
+
+        return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
