@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import MinMaxScaler
+
 from autoencoder import Autoencoder
 
 
@@ -17,6 +19,7 @@ class AeEnsembleClassifier:
         grouped_data = ae_train_data.groupby(by=[target_feature_name])
 
         for target_feature_value, group in grouped_data:
+
             target_feature_value = int(''.join(map(str, target_feature_value)))
 
             train, valid = train_test_split(group.drop(target_feature_name, axis=1), test_size=0.2)
@@ -55,7 +58,6 @@ class AeEnsembleClassifier:
             current_classifier.fit(c_train.drop(target_feature_name, axis=1), c_train[target_feature_name])
 
             self._models[target_feature_value]["classifier"] = current_classifier
-
 
     def fit(self, data: pd.DataFrame, target_feature_name: str):
         ae_train_data, classifiers_train_data = train_test_split(data,
