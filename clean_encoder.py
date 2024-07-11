@@ -22,7 +22,7 @@ scale_train = pd.DataFrame(scaler.fit_transform(X_train), index=X_train.index, c
 
 scale_train[target_feature_name] = train[target_feature_name]
 
-models = AeEnsembleClassifier()
+models = AeEnsembleClassifier(encoder=True, encoder_epochs=500)
 models.fit(scale_train, "app_id")
 
 X_test = test.drop(target_feature_name, axis=1)
