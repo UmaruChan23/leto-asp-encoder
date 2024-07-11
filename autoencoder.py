@@ -6,16 +6,20 @@ class Autoencoder:
     def __init__(self, input_dimension, activation="relu", optimizer="adam", loss="mse"):
         # set bottleneck 1/3 of the input layer size
         input_dim = input_dimension[0]
-        encoding_dim = int(np.floor(input_dim / 1.5))
+        encoding_dim = int(np.floor(input_dim / 1.4))
 
         # input layer size= # of attributes in the dataset after one-hot encoding
         input_layer = layers.Input(shape=input_dimension)  # Input Layer
 
         #encoded = layers.Dense(encoding_dim, activation=activation)(input_layer)
 
+        #encoded_2 = layers.Dense(int(input_dim / 2.1), activation=activation)(encoded)
+
         middle_layer = layers.Dense(int(input_dim / 3), activation=activation)(input_layer)
 
-        #decoded = layers.Dense(encoding_dim, activation=activation)(middle_layer)
+        #decoded_2 = layers.Dense(int(input_dim / 2.1), activation=activation)(middle_layer)
+
+        #decoded = layers.Dense(encoding_dim, activation=activation)(decoded_2)
 
         output_layer = layers.Dense(input_dim, activation="linear")(middle_layer)  # Output Layer
 

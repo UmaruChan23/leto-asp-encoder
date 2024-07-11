@@ -1,4 +1,5 @@
 import statistics
+from collections import Counter
 
 import numpy as np
 import pandas as pd
@@ -116,42 +117,45 @@ class AeEnsembleClassifier:
 
         if self._encoder:
             self._train_encoders(ae_train_data, target_feature_name)
-            self._train_classifiers(classifiers_train_data, target_feature_name)
+            #self._train_classifiers(classifiers_train_data, target_feature_name)
+            self._train_single_classifier(classifiers_train_data, target_feature_name)
         else:
             self._train_encoders(ae_train_data, target_feature_name)
             self._train_classifiers_no_encoder(classifiers_train_data, target_feature_name)
-        #self._train_single_classifier(classifiers_train_data, target_feature_name)
 
-    # def predict(self, data: pd.DataFrame):
-    #     predictions = {}
-    #     mse = {}
-    #     avg_mse = {}
-    #     for target_feature_value, ae_info in self._models.items():
-    #         ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
-    #         predictions[target_feature_value] = ae_predict
-    #         mse[target_feature_value] = (data - ae_predict) ** 2
-    #         avg_mse[target_feature_value] = mse[target_feature_value].agg('mean', axis=1)
-    #
-    #     #TODO: дописать выбор строки по mse
-    #
-    #     predictions = predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
-    #
-    #     classifier_predict = self._single_classifier.predict_proba(predictions)[:, 1]
-    #
-    #     return classifier_predict
+    def _merge_labels(self, predictions: dict):
+        voted_array = []
+        for i in range(max(map(len, predictions.values()))):
+            voted_array.append(Counter(map(lambda x: x[i] if i < len(x) else None, predictions.values())).most_common(1)[0][0])
+        return voted_array
 
     def predict(self, data: pd.DataFrame):
-        predictions = pd.DataFrame()
-        if self._encoder:
-            for target_feature_value, ae_info in self._models.items():
-                ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
-                classifier_predict = ae_info["classifier"].predict_proba(ae_predict)[:, 1]
-                predictions[target_feature_value] = pd.Series(classifier_predict, index=data.index)
+        predictions = {}
+        for target_feature_value, ae_info in self._models.items():
+            ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
+            classes = self._single_classifier.classes_
+            classifier_predict = pd.DataFrame(self._single_classifier.predict_proba(ae_predict))
+            classifier_predict = classifier_predict.apply(lambda instance: classifier_predict.columns[np.argmax(instance)], axis=1)
+            classifier_predict = classifier_predict.apply(lambda instance: classes[instance])
+            predictions[target_feature_value] = classifier_predict
 
-            return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
-        else:
-            for target_feature_value, ae_info in self._models.items():
-                classifier_predict = ae_info["classifier"].predict_proba(data)[:, 1]
-                predictions[target_feature_value] = classifier_predict
 
-            return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
+        result = self._merge_labels(predictions)
+
+        return result
+
+    # def predict(self, data: pd.DataFrame):
+    #     predictions = pd.DataFrame()
+    #     if self._encoder:
+    #         for target_feature_value, ae_info in self._models.items():
+    #             ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
+    #             classifier_predict = ae_info["classifier"].predict_proba(ae_predict)[:, 1]
+    #             predictions[target_feature_value] = pd.Series(classifier_predict, index=data.index)
+    #
+    #         return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
+    #     else:
+    #         for target_feature_value, ae_info in self._models.items():
+    #             classifier_predict = ae_info["classifier"].predict_proba(data)[:, 1]
+    #             predictions[target_feature_value] = classifier_predict
+    #
+    #         return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)

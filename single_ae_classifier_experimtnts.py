@@ -4,7 +4,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, precision_recall_fscore_supp
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-from ae_ensemble_classifier import AeEnsembleClassifier
+from ae_single_classifier import AeSingleClassifier
 from android_app_data_source import load_data, Encryption, Application
 
 target_feature_name = "app_id"
@@ -22,7 +22,7 @@ scale_train = pd.DataFrame(scaler.fit_transform(X_train), index=X_train.index, c
 
 scale_train[target_feature_name] = train[target_feature_name]
 
-models = AeEnsembleClassifier(encoder=True, encoder_epochs=300)
+models = AeSingleClassifier(encoder=True, encoder_epochs=500)
 models.fit(scale_train, "app_id")
 
 X_test = test.drop(target_feature_name, axis=1)
