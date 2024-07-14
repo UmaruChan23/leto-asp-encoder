@@ -142,18 +142,19 @@ class AeEnsembleClassifier:
             return self.single_predict(data)
 
     def single_predict(self, data: pd.DataFrame):
-        predictions = {}
-        for target_feature_value, ae_info in self._models.items():
-            ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
-            classes = self._single_classifier.classes_
-            classifier_predict = pd.DataFrame(self._single_classifier.predict_proba(ae_predict))
-            classifier_predict = classifier_predict.apply(lambda instance: classifier_predict.columns[np.argmax(instance)], axis=1)
-            classifier_predict = classifier_predict.apply(lambda instance: classes[instance])
-            predictions[target_feature_value] = classifier_predict
-
-        result = self._merge_labels(predictions)
-
-        return result
+        if self._encoder:
+            predictions = {}
+            for target_feature_value, ae_info in self._models.items():
+                ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
+                classes = self._single_classifier.classes_
+                classifier_predict = pd.DataFrame(self._single_classifier.predict_proba(ae_predict))
+                classifier_predict = classifier_predict.apply(lambda instance: classifier_predict.columns[np.argmax(instance)], axis=1)
+                classifier_predict = classifier_predict.apply(lambda instance: classes[instance])
+                predictions[target_feature_value] = classifier_predict
+            result = self._merge_labels(predictions)
+            return result
+        else:
+            return pd.DataFrame(self._single_classifier.predict_proba(data))
 
     def ensemble_predict(self, data: pd.DataFrame):
         predictions = pd.DataFrame()
