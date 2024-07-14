@@ -52,11 +52,17 @@ class AeSingleClassifier:
                                                                  stratify=data[target_feature_name],
                                                                  shuffle=True)
 
-        self._train_encoder(ae_train_data, target_feature_name)
-        self._train_classifier(classifiers_train_data, target_feature_name)
+        if self._encoder:
+            self._train_encoder(ae_train_data, target_feature_name)
+            self._train_classifier(classifiers_train_data, target_feature_name)
+        else:
+            self._train_classifier(classifiers_train_data, target_feature_name)
 
     def predict(self, data: pd.DataFrame):
-        ae_predict = pd.DataFrame(data=self._encoder_model.predict(data), index=data.index, columns=data.columns)
+        if self._encoder:
+            ae_predict = pd.DataFrame(data=self._encoder_model.predict(data), index=data.index, columns=data.columns)
+        else:
+            ae_predict = data
         classes = self._classifier_model.classes_
         classifier_predict = pd.DataFrame(self._classifier_model.predict_proba(ae_predict))
         classifier_predict = classifier_predict.apply(lambda instance: classifier_predict.columns[np.argmax(instance)], axis=1)

@@ -48,10 +48,16 @@ class AeEnsembleClassifier:
         all_train = pd.DataFrame()
 
         for target_feature_value, ae_info in self._models.items():
+
             features = classifiers_train_data.drop(target_feature_name, axis=1)
             labels = classifiers_train_data[target_feature_name]
+            train = pd.DataFrame()
 
-            train = pd.DataFrame(data=ae_info["ae"].predict(features), index=features.index, columns=features.columns)
+            if self._ensemble:
+                train = pd.DataFrame(data=ae_info["ae"].predict(features), index=features.index, columns=features.columns)
+            else:
+                train = features
+
             train[target_feature_name] = labels
 
             all_train = pd.concat([all_train, train])
