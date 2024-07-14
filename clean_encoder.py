@@ -10,6 +10,8 @@ from android_app_data_source import load_data, Encryption, Application
 # Настраиваемые параметры
 target_feature_name = "app_id"
 add_noise = False
+use_encoder = False
+use_ensemble = False
 
 # Загрузка данных
 data = load_data(encryption=Encryption.YES, exclude_application=[Application.MI_RU])
@@ -27,7 +29,7 @@ scale_train = pd.DataFrame(scaler.fit_transform(X_train), index=X_train.index, c
 
 scale_train[target_feature_name] = train[target_feature_name]
 
-models = AeEnsembleClassifier(encoder=False, ensemble=False, encoder_epochs=100)
+models = AeEnsembleClassifier(encoder=use_encoder, ensemble=use_ensemble, encoder_epochs=100)
 models.fit(scale_train, "app_id")
 
 if add_noise:
