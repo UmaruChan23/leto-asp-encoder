@@ -14,13 +14,14 @@ class AeEnsembleClassifier:
     WARNING_THRESHOLD = 3
     DETECT_THRESHOLD = 5
 
-    def __init__(self, batch_size: int = 32, encoder: bool = True, encoder_epochs: int = 100):
+    def __init__(self, batch_size: int = 32, encoder: bool = True, ensemble: bool = True, encoder_epochs: int = 100):
         self._models = {}
         self._batch_size = batch_size
         self._single_classifier = RandomForestClassifier()
         self._encoder_mse = {}
         self._encoder = encoder
         self._encoder_epochs = encoder_epochs
+        self._ensemble = ensemble
 
     def _train_encoders(self, ae_train_data, target_feature_name):
         grouped_data = ae_train_data.groupby(by=[target_feature_name])
@@ -114,14 +115,19 @@ class AeEnsembleClassifier:
                                                                  test_size=0.5,
                                                                  stratify=data[target_feature_name],
                                                                  shuffle=True)
-
-        if self._encoder:
-            self._train_encoders(ae_train_data, target_feature_name)
-            #self._train_classifiers(classifiers_train_data, target_feature_name)
-            self._train_single_classifier(classifiers_train_data, target_feature_name)
+        if self._ensemble:
+            if self._encoder:
+                self._train_encoders(ae_train_data, target_feature_name)
+                self._train_classifiers(classifiers_train_data, target_feature_name)
+            else:
+                self._train_encoders(ae_train_data, target_feature_name)
+                self._train_classifiers_no_encoder(classifiers_train_data, target_feature_name)
         else:
-            self._train_encoders(ae_train_data, target_feature_name)
-            self._train_classifiers_no_encoder(classifiers_train_data, target_feature_name)
+            if self._encoder:
+                self._train_encoders(ae_train_data, target_feature_name)
+                self._train_single_classifier(classifiers_train_data, target_feature_name)
+            else:
+                self._train_single_classifier(classifiers_train_data, target_feature_name)
 
     def _merge_labels(self, predictions: dict):
         voted_array = []
@@ -130,6 +136,12 @@ class AeEnsembleClassifier:
         return voted_array
 
     def predict(self, data: pd.DataFrame):
+        if self._ensemble:
+            return self.ensemble_predict(data)
+        else:
+            return self.single_predict(data)
+
+    def single_predict(self, data: pd.DataFrame):
         predictions = {}
         for target_feature_value, ae_info in self._models.items():
             ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
@@ -139,23 +151,22 @@ class AeEnsembleClassifier:
             classifier_predict = classifier_predict.apply(lambda instance: classes[instance])
             predictions[target_feature_value] = classifier_predict
 
-
         result = self._merge_labels(predictions)
 
         return result
 
-    # def predict(self, data: pd.DataFrame):
-    #     predictions = pd.DataFrame()
-    #     if self._encoder:
-    #         for target_feature_value, ae_info in self._models.items():
-    #             ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
-    #             classifier_predict = ae_info["classifier"].predict_proba(ae_predict)[:, 1]
-    #             predictions[target_feature_value] = pd.Series(classifier_predict, index=data.index)
-    #
-    #         return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
-    #     else:
-    #         for target_feature_value, ae_info in self._models.items():
-    #             classifier_predict = ae_info["classifier"].predict_proba(data)[:, 1]
-    #             predictions[target_feature_value] = classifier_predict
-    #
-    #         return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
+    def ensemble_predict(self, data: pd.DataFrame):
+        predictions = pd.DataFrame()
+        if self._encoder:
+            for target_feature_value, ae_info in self._models.items():
+                ae_predict = pd.DataFrame(data=ae_info["ae"].predict(data), index=data.index, columns=data.columns)
+                classifier_predict = ae_info["classifier"].predict_proba(ae_predict)[:, 1]
+                predictions[target_feature_value] = pd.Series(classifier_predict, index=data.index)
+
+            return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)
+        else:
+            for target_feature_value, ae_info in self._models.items():
+                classifier_predict = ae_info["classifier"].predict_proba(data)[:, 1]
+                predictions[target_feature_value] = classifier_predict
+
+            return predictions.apply(lambda instance: predictions.columns[np.argmax(instance)], axis=1)

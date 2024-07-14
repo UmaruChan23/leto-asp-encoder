@@ -7,10 +7,15 @@ from sklearn.preprocessing import MinMaxScaler
 from ae_ensemble_classifier import AeEnsembleClassifier
 from android_app_data_source import load_data, Encryption, Application
 
+# Настраиваемые параметры
 target_feature_name = "app_id"
+add_noise = False
 
 # Загрузка данных
 data = load_data(encryption=Encryption.YES, exclude_application=[Application.MI_RU])
+noise = load_data(encryption=Encryption.YES, exclude_application=[Application.HSN, Application.ISG, Application.PKB, Application.SB, Application.SP])
+
+# Добавление фона
 
 # Разделение данных на обучающую и тестовую выборки
 train, test = train_test_split(data, test_size=0.2, random_state=42)
@@ -22,8 +27,11 @@ scale_train = pd.DataFrame(scaler.fit_transform(X_train), index=X_train.index, c
 
 scale_train[target_feature_name] = train[target_feature_name]
 
-models = AeEnsembleClassifier(encoder=True, encoder_epochs=300)
+models = AeEnsembleClassifier(encoder=True, ensemble=False, encoder_epochs=100)
 models.fit(scale_train, "app_id")
+
+if add_noise:
+    test = pd.concat([test, noise]).sample(frac=1.0, replace=False)
 
 X_test = test.drop(target_feature_name, axis=1)
 
