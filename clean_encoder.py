@@ -30,10 +30,11 @@ scaler = MinMaxScaler()
 scale_train = pd.DataFrame(scaler.fit_transform(X_train), index=X_train.index, columns=X_train.columns)
 
 scale_train[target_feature_name] = train[target_feature_name]
-if use_ensemble:
-    models = AeEnsembleClassifier(encoder=use_encoder, ensemble=True, encoder_epochs=100)
-else:
+if one_encoder_and_classifier:
     models = AeSingleClassifier(encoder=use_encoder, encoder_epochs=100)
+else:
+    models = AeEnsembleClassifier(encoder=use_encoder, ensemble=use_ensemble, encoder_epochs=100)
+
 models.fit(scale_train, "app_id")
 
 if add_noise:

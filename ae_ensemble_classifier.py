@@ -53,7 +53,7 @@ class AeEnsembleClassifier:
             labels = classifiers_train_data[target_feature_name]
             train = pd.DataFrame()
 
-            if self._ensemble:
+            if self._encoder:
                 train = pd.DataFrame(data=ae_info["ae"].predict(features), index=features.index, columns=features.columns)
             else:
                 train = features

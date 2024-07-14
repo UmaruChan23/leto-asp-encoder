@@ -35,7 +35,13 @@ class AeSingleClassifier:
         features = classifiers_train_data.drop(target_feature_name, axis=1)
         labels = classifiers_train_data[target_feature_name]
 
-        train = pd.DataFrame(data=self._encoder_model.predict(features), index=features.index, columns=features.columns)
+        train = pd.DataFrame()
+
+        if self._encoder:
+            train = pd.DataFrame(data=self._encoder_model.predict(features), index=features.index, columns=features.columns)
+        else:
+            train = features
+
         train[target_feature_name] = labels
 
         current_classifier = RandomForestClassifier(random_state=42)
